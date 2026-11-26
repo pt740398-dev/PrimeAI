@@ -1,5 +1,5 @@
 
-name: Prime AI Gemini APK Build
+name: Prime AI APK Build
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build Prime AI
+    name: Build Prime AI APK
     runs-on: ubuntu-latest
 
     steps:
@@ -28,62 +28,21 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Find or Extract Android Project
-        id: project
-        shell: bash
+      - name: Verify Project Structure
         run: |
-          set -e
-
-          SETTINGS=$(find . -type f \
-            \( -name settings.gradle -o -name settings.gradle.kts \) \
-            -not -path './.git/*' | head -n 1)
-
-          if [ -z "$SETTINGS" ]; then
-            mkdir -p extracted
-
-            for ZIP in $(find . -maxdepth 3 -type f -name '*.zip' -not -path './.git/*'); do
-              echo "Extracting: $ZIP"
-              DEST="extracted/$(basename "$ZIP" .zip)"
-              mkdir -p "$DEST"
-              unzip -oq "$ZIP" -d "$DEST"
-            done
-
-            SETTINGS=$(find extracted -type f \
-              \( -name settings.gradle -o -name settings.gradle.kts \) \
-              | head -n 1)
-          fi
-
-          if [ -z "$SETTINGS" ]; then
-            echo "ERROR: Gradle settings file not found."
-            find . -maxdepth 5 -type f | head -n 150
-            exit 1
-          fi
-
-          PROJECT_DIR=$(dirname "$SETTINGS")
-          echo "Project root: $PROJECT_DIR"
-          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Checking Prime AI project..."
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+          test -f app/build.gradle.kts
+          test -f app/src/main/AndroidManifest.xml
+          echo "Project structure verified!"
 
       - name: Build Debug APK
-        run: gradle -p "${{ steps.project.outputs.project_dir }}" assembleDebug
-
-      - name: Find APK
-        id: apk
-        shell: bash
-        run: |
-          APK=$(find "${{ steps.project.outputs.project_dir }}" \
-            -type f -path '*/build/outputs/apk/debug/app-debug.apk' \
-            | head -n 1)
-
-          if [ -z "$APK" ]; then
-            echo "APK not found!"
-            exit 1
-          fi
-
-          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Prime-AI-Gemini-APK
-          path: ${{ steps.apk.outputs.apk_path }}
+          name: Prime-AI-Updated-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
