@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - main
-      - master
 
 jobs:
   build:
@@ -28,21 +27,45 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Verify Project Structure
+      - name: Extract Android Project ZIP
         run: |
-          echo "Checking Prime AI project..."
-          test -f settings.gradle.kts
-          test -f build.gradle.kts
-          test -f app/build.gradle.kts
-          test -f app/src/main/AndroidManifest.xml
-          echo "Project structure verified!"
+          mkdir -p extracted
+
+          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: Project ZIP not found!"
+            exit 1
+          fi
+
+          echo "Found ZIP: $ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d extracted
+
+      - name: Locate Android Project
+        run: |
+          PROJECT_DIR=$(dirname "$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)")
+
+          if [ -z "$PROJECT_DIR" ] || [ "$PROJECT_DIR" = "extracted" ]; then
+            echo "ERROR: Gradle project not found inside ZIP!"
+            find extracted -maxdepth 4 -type f
+            exit 1
+          fi
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Project found: $PROJECT_DIR"
+
+          test -f "$PROJECT_DIR/build.gradle.kts"
+          test -f "$PROJECT_DIR/app/build.gradle.kts"
+          test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
 
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: |
+          gradle -p "$PROJECT_DIR" assembleDebug
+          cp "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk" prime-ai-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Prime-AI-Updated-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Prime-AI-APK
+          path: prime-ai-debug.apk
           if-no-files-found: error
