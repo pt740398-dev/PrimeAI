@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - master
 
 jobs:
   build:
@@ -43,13 +44,15 @@ jobs:
 
       - name: Locate Android Project
         run: |
-          PROJECT_DIR=$(dirname "$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)")
+          SETTINGS_FILE=$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
 
-          if [ -z "$PROJECT_DIR" ] || [ "$PROJECT_DIR" = "extracted" ]; then
-            echo "ERROR: Gradle project not found inside ZIP!"
-            find extracted -maxdepth 4 -type f
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: Gradle project not found!"
+            find extracted -maxdepth 5 -type f
             exit 1
           fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
           echo "Project found: $PROJECT_DIR"
@@ -58,14 +61,26 @@ jobs:
           test -f "$PROJECT_DIR/app/build.gradle.kts"
           test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
 
+          echo "Project structure verified!"
+
       - name: Build Debug APK
         run: |
           gradle -p "$PROJECT_DIR" assembleDebug
-          cp "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk" prime-ai-debug.apk
 
-      - name: Upload APK
+      - name: Verify APK
+        run: |
+          APK="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "ERROR: APK was not generated!"
+            exit 1
+          fi
+
+          ls -lh "$APK"
+
+      - name: Upload Prime AI APK
         uses: actions/upload-artifact@v4
         with:
           name: Prime-AI-APK
-          path: prime-ai-debug.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
