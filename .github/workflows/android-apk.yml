@@ -1,5 +1,5 @@
 
-name: Prime AI APK Build
+name: Prime AI Gemini APK Build
 
 on:
   workflow_dispatch:
@@ -10,22 +10,12 @@ on:
 
 jobs:
   build:
-    name: Build Prime AI APK
+    name: Build Prime AI Gemini APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Extract Prime AI ZIP
-        run: |
-          if [ ! -f "PrimeAI_NaraRouter_Android.zip" ]; then
-            echo "Prime AI ZIP not found!"
-            exit 1
-          fi
-          unzip -q PrimeAI_NaraRouter_Android.zip -d extracted
-          echo "ZIP extracted successfully"
-          find extracted -maxdepth 3 -type f | head -60
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -38,26 +28,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Locate Android Project
-        id: project
-        run: |
-          PROJECT_FILE=$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
-
-          if [ -z "$PROJECT_FILE" ]; then
-            echo "Gradle settings file not found inside ZIP!"
-            exit 1
-          fi
-
-          PROJECT_DIR=$(dirname "$PROJECT_FILE")
-          echo "Project found at: $PROJECT_DIR"
-          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Build Prime AI APK
-        run: gradle -p "${{ steps.project.outputs.dir }}" assembleDebug
+      - name: Build APK
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Prime-AI-APK
-          path: ${{ steps.project.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
+          name: Prime-AI-Gemini-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
