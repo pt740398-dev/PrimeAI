@@ -1,5 +1,5 @@
 
-name: Prime AI APK Build
+name: Prime AI Gemini APK Build
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build Prime AI APK
+    name: Build Prime AI
     runs-on: ubuntu-latest
 
     steps:
@@ -28,26 +28,32 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract Android Project ZIP
+      - name: Extract Prime AI Source ZIP
         run: |
           mkdir -p extracted
 
-          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 3 -type f \
+            -iname "*.zip" \
+            ! -iname "*apk*" \
+            ! -path "./extracted/*" \
+            | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: Project ZIP not found!"
+            echo "ERROR: Source ZIP not found!"
             exit 1
           fi
 
-          echo "Found ZIP: $ZIP_FILE"
+          echo "Extracting: $ZIP_FILE"
           unzip -q "$ZIP_FILE" -d extracted
 
-      - name: Locate Android Project
+      - name: Locate and Verify Project
         run: |
-          SETTINGS_FILE=$(find extracted -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
+          SETTINGS_FILE=$(find extracted -type f \
+            \( -name settings.gradle -o -name settings.gradle.kts \) \
+            -print -quit)
 
           if [ -z "$SETTINGS_FILE" ]; then
-            echo "ERROR: Gradle project not found!"
+            echo "ERROR: Gradle settings file not found!"
             find extracted -maxdepth 5 -type f
             exit 1
           fi
@@ -55,6 +61,7 @@ jobs:
           PROJECT_DIR=$(dirname "$SETTINGS_FILE")
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
           echo "Project found: $PROJECT_DIR"
 
           test -f "$PROJECT_DIR/build.gradle.kts"
@@ -72,7 +79,7 @@ jobs:
           APK="$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
-            echo "ERROR: APK was not generated!"
+            echo "ERROR: APK not generated!"
             exit 1
           fi
 
@@ -81,6 +88,7 @@ jobs:
       - name: Upload Prime AI APK
         uses: actions/upload-artifact@v4
         with:
-          name: Prime-AI-APK
+          name: Prime-AI-Gemini-APK
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          
