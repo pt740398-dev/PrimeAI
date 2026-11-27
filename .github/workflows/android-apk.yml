@@ -1,5 +1,5 @@
 
-name: Prime AI FastReply APK Build
+name: Prime AI FastReply Fixed APK
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build Prime AI FastReply
+    name: Build Prime AI
     runs-on: ubuntu-latest
 
     steps:
@@ -28,32 +28,24 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract FastReply Source ZIP
+      - name: Extract Fixed Source ZIP
         run: |
           mkdir -p extracted
 
           ZIP_FILE=$(find . -maxdepth 3 -type f \
-            -iname "*FastReply*.zip" \
+            -iname "PrimeAI_Gemini_FastReply_Fixed.zip" \
             ! -path "./extracted/*" | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "FastReply ZIP not found. Searching for another source ZIP..."
-
-            ZIP_FILE=$(find . -maxdepth 3 -type f \
-              -iname "*.zip" \
-              ! -iname "*apk*" \
-              ! -path "./extracted/*" | head -n 1)
-          fi
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: Source ZIP not found!"
+            echo "ERROR: Fixed source ZIP not found!"
+            find . -maxdepth 3 -type f
             exit 1
           fi
 
-          echo "Using source: $ZIP_FILE"
+          echo "Extracting: $ZIP_FILE"
           unzip -q "$ZIP_FILE" -d extracted
 
-      - name: Locate Android Project
+      - name: Locate and Verify Project
         run: |
           SETTINGS_FILE=$(find extracted -type f \
             \( -name settings.gradle -o -name settings.gradle.kts \) \
@@ -69,15 +61,13 @@ jobs:
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          echo "Project found: $PROJECT_DIR"
-
           test -f "$PROJECT_DIR/build.gradle.kts"
           test -f "$PROJECT_DIR/app/build.gradle.kts"
           test -f "$PROJECT_DIR/app/src/main/AndroidManifest.xml"
 
-          echo "Project structure verified!"
+          echo "Project verified: $PROJECT_DIR"
 
-      - name: Build Prime AI APK
+      - name: Build Debug APK
         run: |
           gradle -p "$PROJECT_DIR" assembleDebug
 
@@ -92,9 +82,10 @@ jobs:
 
           ls -lh "$APK"
 
-      - name: Upload APK
+      - name: Upload Prime AI APK
         uses: actions/upload-artifact@v4
         with:
-          name: Prime-AI-FastReply-APK
+          name: Prime-AI-FastReply-Fixed
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          
