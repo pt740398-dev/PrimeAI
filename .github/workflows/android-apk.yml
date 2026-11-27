@@ -1,5 +1,5 @@
 
-name: Prime AI Gemini APK Build
+name: Prime AI FastReply APK Build
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Build Prime AI
+    name: Build Prime AI FastReply
     runs-on: ubuntu-latest
 
     steps:
@@ -28,25 +28,32 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract Prime AI Source ZIP
+      - name: Extract FastReply Source ZIP
         run: |
           mkdir -p extracted
 
           ZIP_FILE=$(find . -maxdepth 3 -type f \
-            -iname "*.zip" \
-            ! -iname "*apk*" \
-            ! -path "./extracted/*" \
-            | head -n 1)
+            -iname "*FastReply*.zip" \
+            ! -path "./extracted/*" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "FastReply ZIP not found. Searching for another source ZIP..."
+
+            ZIP_FILE=$(find . -maxdepth 3 -type f \
+              -iname "*.zip" \
+              ! -iname "*apk*" \
+              ! -path "./extracted/*" | head -n 1)
+          fi
 
           if [ -z "$ZIP_FILE" ]; then
             echo "ERROR: Source ZIP not found!"
             exit 1
           fi
 
-          echo "Extracting: $ZIP_FILE"
+          echo "Using source: $ZIP_FILE"
           unzip -q "$ZIP_FILE" -d extracted
 
-      - name: Locate and Verify Project
+      - name: Locate Android Project
         run: |
           SETTINGS_FILE=$(find extracted -type f \
             \( -name settings.gradle -o -name settings.gradle.kts \) \
@@ -70,7 +77,7 @@ jobs:
 
           echo "Project structure verified!"
 
-      - name: Build Debug APK
+      - name: Build Prime AI APK
         run: |
           gradle -p "$PROJECT_DIR" assembleDebug
 
@@ -85,10 +92,9 @@ jobs:
 
           ls -lh "$APK"
 
-      - name: Upload Prime AI APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Prime-AI-Gemini-APK
+          name: Prime-AI-FastReply-APK
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          
